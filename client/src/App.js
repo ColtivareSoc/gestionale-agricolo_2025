@@ -1,22 +1,39 @@
-// App.js - Gestionale Agricolo React
+// App.js - Gestionale Agricolo React - Versione Produzione
 import React, { useState, useEffect } from "react";
 import {
   Plus,
-  Search,
   Edit2,
   Trash2,
   Package,
   Users,
   FileText,
-  Calendar,
   AlertCircle,
-  Check,
 } from "lucide-react";
 import axios from "axios";
 
-// Configurazione API
+// Configurazione API con fallback per development/production
 const API_BASE =
-  process.env.NODE_ENV === "production" ? "" : "http://localhost:5000";
+  process.env.NODE_ENV === "production"
+    ? window.location.origin
+    : "http://localhost:5000";
+
+// Configurazione Axios con timeout e gestione errori
+axios.defaults.timeout = 10000;
+axios.defaults.headers.common["Content-Type"] = "application/json";
+
+// Interceptor per gestione errori globale
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error("API Error:", error);
+    if (error.code === "ECONNABORTED") {
+      alert("Richiesta scaduta. Controlla la connessione.");
+    } else if (error.response?.status === 500) {
+      alert("Errore del server. Riprova più tardi.");
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Utility per le chiamate API
 const api = {
@@ -40,8 +57,9 @@ const api = {
   updateArrivo: (id, data) => axios.put(`${API_BASE}/api/arrivi/${id}`, data),
   deleteArrivo: (id) => axios.delete(`${API_BASE}/api/arrivi/${id}`),
 
-  // Stats
+  // Stats e Health Check
   getStats: () => axios.get(`${API_BASE}/api/stats`),
+  healthCheck: () => axios.get(`${API_BASE}/api/health`),
 };
 
 // Badge Components
@@ -55,6 +73,7 @@ const FornitoriBadge = ({ fornitori, onAddFornitore }) => (
       <button
         onClick={onAddFornitore}
         className="text-blue-600 hover:text-blue-800 text-sm"
+        type="button"
       >
         + Aggiungi
       </button>
@@ -77,6 +96,7 @@ const ProdottiBadge = ({ prodotti, onAddProdotto }) => (
       <button
         onClick={onAddProdotto}
         className="text-green-600 hover:text-green-800 text-sm"
+        type="button"
       >
         + Aggiungi
       </button>
@@ -112,6 +132,7 @@ const ArriviMerceBadge = ({ arriviMerce, onRegistraArrivo }) => {
         <button
           onClick={onRegistraArrivo}
           className="text-orange-600 hover:text-orange-800 text-sm"
+          type="button"
         >
           + Registra
         </button>
@@ -161,8 +182,9 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
     } catch (error) {
       console.error("Errore salvataggio fornitore:", error);
       alert("Errore nel salvataggio del fornitore");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -189,12 +211,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.ragioneSociale}
                 onChange={(e) =>
                   setFormData({ ...formData, ragioneSociale: e.target.value })
                 }
                 placeholder="Nome dell'azienda fornitrice"
+                disabled={loading}
               />
             </div>
 
@@ -204,12 +227,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.partitaIva}
                 onChange={(e) =>
                   setFormData({ ...formData, partitaIva: e.target.value })
                 }
                 placeholder="12345678901"
+                disabled={loading}
               />
             </div>
 
@@ -219,12 +243,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.codiceFiscale}
                 onChange={(e) =>
                   setFormData({ ...formData, codiceFiscale: e.target.value })
                 }
                 placeholder="Se diverso dalla P.IVA"
+                disabled={loading}
               />
             </div>
 
@@ -234,12 +259,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.indirizzo}
                 onChange={(e) =>
                   setFormData({ ...formData, indirizzo: e.target.value })
                 }
                 placeholder="Via, numero civico"
+                disabled={loading}
               />
             </div>
 
@@ -247,12 +273,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">Città</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.citta}
                 onChange={(e) =>
                   setFormData({ ...formData, citta: e.target.value })
                 }
                 placeholder="Città"
+                disabled={loading}
               />
             </div>
 
@@ -260,12 +287,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">CAP</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.cap}
                 onChange={(e) =>
                   setFormData({ ...formData, cap: e.target.value })
                 }
                 placeholder="12345"
+                disabled={loading}
               />
             </div>
 
@@ -275,12 +303,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.provincia}
                 onChange={(e) =>
                   setFormData({ ...formData, provincia: e.target.value })
                 }
                 placeholder="XX"
+                disabled={loading}
               />
             </div>
 
@@ -288,12 +317,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">Nazione</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.nazione}
                 onChange={(e) =>
                   setFormData({ ...formData, nazione: e.target.value })
                 }
                 placeholder="Italia"
+                disabled={loading}
               />
             </div>
 
@@ -301,12 +331,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">Telefono</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.telefono}
                 onChange={(e) =>
                   setFormData({ ...formData, telefono: e.target.value })
                 }
                 placeholder="+39 123 456 7890"
+                disabled={loading}
               />
             </div>
 
@@ -314,12 +345,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">Email</label>
               <input
                 type="email"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="info@fornitore.it"
+                disabled={loading}
               />
             </div>
 
@@ -327,12 +359,13 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <label className="block text-sm font-medium mb-1">IBAN</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.iban}
                 onChange={(e) =>
                   setFormData({ ...formData, iban: e.target.value })
                 }
                 placeholder="IT60 X054 2811 1010 0000 0123 456"
+                disabled={loading}
               />
             </div>
 
@@ -342,7 +375,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.condizionePagamento}
                 onChange={(e) =>
                   setFormData({
@@ -351,6 +384,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
                   })
                 }
                 placeholder="es. Bonifico bancario"
+                disabled={loading}
               />
             </div>
 
@@ -360,12 +394,16 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               </label>
               <input
                 type="number"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.giorni}
                 onChange={(e) =>
-                  setFormData({ ...formData, giorni: parseInt(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    giorni: parseInt(e.target.value) || 0,
+                  })
                 }
                 placeholder="30"
+                disabled={loading}
               />
             </div>
 
@@ -376,15 +414,16 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <input
                 type="number"
                 step="0.01"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.scontistica}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    scontistica: parseFloat(e.target.value),
+                    scontistica: parseFloat(e.target.value) || 0,
                   })
                 }
                 placeholder="0"
+                disabled={loading}
               />
             </div>
 
@@ -392,11 +431,12 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
               <input
                 type="checkbox"
                 id="biologico"
-                className="mr-2"
+                className="mr-2 focus:ring-2 focus:ring-blue-500"
                 checked={formData.biologico}
                 onChange={(e) =>
                   setFormData({ ...formData, biologico: e.target.checked })
                 }
+                disabled={loading}
               />
               <label htmlFor="biologico" className="text-sm font-medium">
                 Prodotti Biologici
@@ -410,7 +450,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
                 </label>
                 <input
                   type="text"
-                  className="w-full p-2 border border-gray-300 rounded"
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={formData.certificazioniBio}
                   onChange={(e) =>
                     setFormData({
@@ -419,6 +459,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
                     })
                   }
                   placeholder="Enti certificatori, numero certificato"
+                  disabled={loading}
                 />
               </div>
             )}
@@ -426,13 +467,14 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Note</label>
               <textarea
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows="3"
                 value={formData.note}
                 onChange={(e) =>
                   setFormData({ ...formData, note: e.target.value })
                 }
                 placeholder="Note aggiuntive sul fornitore"
+                disabled={loading}
               />
             </div>
           </div>
@@ -441,8 +483,9 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
         <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             Annulla
           </button>
@@ -450,6 +493,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
             onClick={handleSubmit}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             {loading ? (
               <div className="flex items-center">
@@ -468,7 +512,7 @@ const FormFornitore = ({ fornitore, onSave, onCancel, isEdit = false }) => {
   );
 };
 
-// Form Prodotto
+// Form Prodotto (continua nel prossimo artifact per limiti di spazio)
 const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
   const [formData, setFormData] = useState({
     categoria: "",
@@ -502,8 +546,9 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
     } catch (error) {
       console.error("Errore salvataggio prodotto:", error);
       alert("Errore nel salvataggio del prodotto");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -519,11 +564,12 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
               Categoria *
             </label>
             <select
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
               value={formData.categoria}
               onChange={(e) =>
                 setFormData({ ...formData, categoria: e.target.value })
               }
+              disabled={loading}
             >
               <option value="">Seleziona categoria...</option>
               {categorieDisponibili.map((cat) => (
@@ -540,12 +586,13 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             </label>
             <input
               type="text"
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
               value={formData.nome}
               onChange={(e) =>
                 setFormData({ ...formData, nome: e.target.value })
               }
               placeholder="es. Big Top, Hayward, ecc."
+              disabled={loading}
             />
           </div>
 
@@ -553,12 +600,13 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             <label className="block text-sm font-medium mb-1">Varietà</label>
             <input
               type="text"
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
               value={formData.varieta}
               onChange={(e) =>
                 setFormData({ ...formData, varieta: e.target.value })
               }
               placeholder="Sottocategoria o varietà specifica"
+              disabled={loading}
             />
           </div>
 
@@ -566,12 +614,13 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             <label className="block text-sm font-medium mb-1">Codice</label>
             <input
               type="text"
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
               value={formData.codice}
               onChange={(e) =>
                 setFormData({ ...formData, codice: e.target.value })
               }
               placeholder="Codice interno prodotto"
+              disabled={loading}
             />
           </div>
 
@@ -580,13 +629,14 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
               Descrizione
             </label>
             <textarea
-              className="w-full p-2 border border-gray-300 rounded"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
               rows="3"
               value={formData.descrizione}
               onChange={(e) =>
                 setFormData({ ...formData, descrizione: e.target.value })
               }
               placeholder="Descrizione dettagliata del prodotto"
+              disabled={loading}
             />
           </div>
 
@@ -594,11 +644,12 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                className="mr-2"
+                className="mr-2 focus:ring-2 focus:ring-green-500"
                 checked={formData.biologico}
                 onChange={(e) =>
                   setFormData({ ...formData, biologico: e.target.checked })
                 }
+                disabled={loading}
               />
               <span className="text-sm">Biologico</span>
             </label>
@@ -606,11 +657,12 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                className="mr-2"
+                className="mr-2 focus:ring-2 focus:ring-green-500"
                 checked={formData.calibrabile}
                 onChange={(e) =>
                   setFormData({ ...formData, calibrabile: e.target.checked })
                 }
+                disabled={loading}
               />
               <span className="text-sm">Calibrabile</span>
             </label>
@@ -620,8 +672,9 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
         <div className="flex justify-end space-x-3 mt-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             Annulla
           </button>
@@ -629,6 +682,7 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
             onClick={handleSubmit}
             className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             {loading ? (
               <div className="flex items-center">
@@ -646,6 +700,9 @@ const FormProdotto = ({ prodotto, onSave, onCancel, isEdit = false }) => {
     </div>
   );
 };
+
+// Resto del componente App e altri form nel prossimo commento...
+// Continuazione del file App.js - Form Arrivo Merce e Componente Principale
 
 // Form Arrivo Merce
 const FormArrivoMerce = ({
@@ -720,8 +777,9 @@ const FormArrivoMerce = ({
     } catch (error) {
       console.error("Errore salvataggio arrivo:", error);
       alert("Errore nel salvataggio dell'arrivo");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -741,11 +799,12 @@ const FormArrivoMerce = ({
               </label>
               <input
                 type="date"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.dataArrivo}
                 onChange={(e) =>
                   setFormData({ ...formData, dataArrivo: e.target.value })
                 }
+                disabled={loading}
               />
             </div>
 
@@ -755,11 +814,12 @@ const FormArrivoMerce = ({
               </label>
               <input
                 type="time"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.oraArrivo}
                 onChange={(e) =>
                   setFormData({ ...formData, oraArrivo: e.target.value })
                 }
+                disabled={loading}
               />
             </div>
 
@@ -768,11 +828,12 @@ const FormArrivoMerce = ({
                 Fornitore *
               </label>
               <select
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.fornitoreId}
                 onChange={(e) =>
                   setFormData({ ...formData, fornitoreId: e.target.value })
                 }
+                disabled={loading}
               >
                 <option value="">Seleziona fornitore...</option>
                 {fornitori.map((fornitore) => (
@@ -788,11 +849,12 @@ const FormArrivoMerce = ({
                 Prodotto *
               </label>
               <select
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.prodottoId}
                 onChange={(e) =>
                   setFormData({ ...formData, prodottoId: e.target.value })
                 }
+                disabled={loading}
               >
                 <option value="">Seleziona prodotto...</option>
                 {prodotti.map((prodotto) => (
@@ -807,12 +869,13 @@ const FormArrivoMerce = ({
               <label className="block text-sm font-medium mb-1">Lotto</label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.lotto}
                 onChange={(e) =>
                   setFormData({ ...formData, lotto: e.target.value })
                 }
                 placeholder="Codice lotto"
+                disabled={loading}
               />
             </div>
 
@@ -821,11 +884,12 @@ const FormArrivoMerce = ({
                 Qualità *
               </label>
               <select
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.qualita}
                 onChange={(e) =>
                   setFormData({ ...formData, qualita: e.target.value })
                 }
+                disabled={loading}
               >
                 <option value="I">I Qualità</option>
                 <option value="II">II Qualità</option>
@@ -838,11 +902,12 @@ const FormArrivoMerce = ({
                 Tipo Imballaggio *
               </label>
               <select
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.tipoImballaggio}
                 onChange={(e) =>
                   setFormData({ ...formData, tipoImballaggio: e.target.value })
                 }
+                disabled={loading}
               >
                 <option value="bins">Bins</option>
                 <option value="cassette">Cassette</option>
@@ -855,12 +920,13 @@ const FormArrivoMerce = ({
               </label>
               <input
                 type="number"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.numeroColli}
                 onChange={(e) =>
                   setFormData({ ...formData, numeroColli: e.target.value })
                 }
                 placeholder="Quantità"
+                disabled={loading}
               />
             </div>
 
@@ -871,12 +937,13 @@ const FormArrivoMerce = ({
               <input
                 type="number"
                 step="0.01"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.pesoLordo}
                 onChange={(e) =>
                   setFormData({ ...formData, pesoLordo: e.target.value })
                 }
                 placeholder="0.00"
+                disabled={loading}
               />
             </div>
 
@@ -887,12 +954,13 @@ const FormArrivoMerce = ({
               <input
                 type="number"
                 step="0.01"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.pesoNetto}
                 onChange={(e) =>
                   setFormData({ ...formData, pesoNetto: e.target.value })
                 }
                 placeholder="0.00"
+                disabled={loading}
               />
             </div>
 
@@ -903,12 +971,13 @@ const FormArrivoMerce = ({
               <input
                 type="number"
                 step="0.01"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.prezzoKg}
                 onChange={(e) =>
                   setFormData({ ...formData, prezzoKg: e.target.value })
                 }
                 placeholder="0.00"
+                disabled={loading}
               />
             </div>
 
@@ -919,7 +988,7 @@ const FormArrivoMerce = ({
               <input
                 type="number"
                 step="0.1"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.percentualeScartoPrevista}
                 onChange={(e) =>
                   setFormData({
@@ -928,6 +997,7 @@ const FormArrivoMerce = ({
                   })
                 }
                 placeholder="5"
+                disabled={loading}
               />
             </div>
 
@@ -965,12 +1035,13 @@ const FormArrivoMerce = ({
               </label>
               <input
                 type="text"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.numeroDocumento}
                 onChange={(e) =>
                   setFormData({ ...formData, numeroDocumento: e.target.value })
                 }
                 placeholder="DDT, Fattura, ecc."
+                disabled={loading}
               />
             </div>
 
@@ -980,11 +1051,12 @@ const FormArrivoMerce = ({
               </label>
               <input
                 type="date"
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 value={formData.dataDocumento}
                 onChange={(e) =>
                   setFormData({ ...formData, dataDocumento: e.target.value })
                 }
+                disabled={loading}
               />
             </div>
 
@@ -992,7 +1064,7 @@ const FormArrivoMerce = ({
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  className="mr-2"
+                  className="mr-2 focus:ring-2 focus:ring-orange-500"
                   checked={formData.documentoAllegato}
                   onChange={(e) =>
                     setFormData({
@@ -1000,6 +1072,7 @@ const FormArrivoMerce = ({
                       documentoAllegato: e.target.checked,
                     })
                   }
+                  disabled={loading}
                 />
                 <span className="text-sm">Documento Allegato</span>
               </label>
@@ -1007,11 +1080,12 @@ const FormArrivoMerce = ({
               <label className="flex items-center">
                 <input
                   type="checkbox"
-                  className="mr-2"
+                  className="mr-2 focus:ring-2 focus:ring-orange-500"
                   checked={formData.biologico}
                   onChange={(e) =>
                     setFormData({ ...formData, biologico: e.target.checked })
                   }
+                  disabled={loading}
                 />
                 <span className="text-sm">Biologico</span>
               </label>
@@ -1020,13 +1094,14 @@ const FormArrivoMerce = ({
             <div className="md:col-span-3">
               <label className="block text-sm font-medium mb-1">Note</label>
               <textarea
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 rows="3"
                 value={formData.note}
                 onChange={(e) =>
                   setFormData({ ...formData, note: e.target.value })
                 }
                 placeholder="Note aggiuntive sull'arrivo"
+                disabled={loading}
               />
             </div>
           </div>
@@ -1035,8 +1110,9 @@ const FormArrivoMerce = ({
         <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 flex-shrink-0">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             Annulla
           </button>
@@ -1044,6 +1120,7 @@ const FormArrivoMerce = ({
             onClick={handleSubmit}
             className="px-6 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
             disabled={loading}
+            type="button"
           >
             {loading ? (
               <div className="flex items-center">
@@ -1066,6 +1143,7 @@ const FormArrivoMerce = ({
 const App = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState("checking");
 
   // Stati per i dati
   const [fornitori, setFornitori] = useState([]);
@@ -1082,34 +1160,49 @@ const App = () => {
   const [editingProdotto, setEditingProdotto] = useState(null);
   const [editingArrivo, setEditingArrivo] = useState(null);
 
-  // Caricamento dati
+  // Health check e caricamento dati
   const loadData = async () => {
     setLoading(true);
     setError(null);
+    setConnectionStatus("checking");
+
     try {
+      // Prima verifica la connessione
+      try {
+        await api.healthCheck();
+        setConnectionStatus("connected");
+      } catch (healthError) {
+        console.warn("Health check failed, proceeding anyway:", healthError);
+        setConnectionStatus("unknown");
+      }
+
+      // Carica i dati
       const [fornitoriRes, prodottiRes, arriviRes] = await Promise.all([
-        api.getFornitori(),
-        api.getProdotti(),
-        api.getArrivi(),
+        api.getFornitori().catch((err) => ({ data: [] })),
+        api.getProdotti().catch((err) => ({ data: [] })),
+        api.getArrivi().catch((err) => ({ data: [] })),
       ]);
 
-      setFornitori(fornitoriRes.data);
-      setProdotti(prodottiRes.data);
-      setArriviMerce(arriviRes.data);
+      setFornitori(fornitoriRes.data || []);
+      setProdotti(prodottiRes.data || []);
+      setArriviMerce(arriviRes.data || []);
+      setConnectionStatus("connected");
     } catch (error) {
       console.error("Errore caricamento dati:", error);
+      setConnectionStatus("failed");
       setError(
         "Errore di connessione al server. Verifica che il backend sia attivo."
       );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Handler per salvataggio
+  // Handler per salvataggio con gestione errori migliorata
   const handleSaveFornitore = async (fornitoreData) => {
     try {
       if (editingFornitore) {
@@ -1129,6 +1222,7 @@ const App = () => {
       }
       setShowFormFornitore(false);
     } catch (error) {
+      console.error("Errore salvataggio fornitore:", error);
       throw error;
     }
   };
@@ -1152,6 +1246,7 @@ const App = () => {
       }
       setShowFormProdotto(false);
     } catch (error) {
+      console.error("Errore salvataggio prodotto:", error);
       throw error;
     }
   };
@@ -1172,6 +1267,7 @@ const App = () => {
       }
       setShowFormMerce(false);
     } catch (error) {
+      console.error("Errore salvataggio arrivo:", error);
       throw error;
     }
   };
@@ -1182,6 +1278,7 @@ const App = () => {
         await api.deleteFornitore(fornitoreId);
         setFornitori(fornitori.filter((f) => f._id !== fornitoreId));
       } catch (error) {
+        console.error("Errore eliminazione fornitore:", error);
         alert("Errore nell'eliminazione del fornitore");
       }
     }
@@ -1193,6 +1290,7 @@ const App = () => {
         await api.deleteProdotto(prodottoId);
         setProdotti(prodotti.filter((p) => p._id !== prodottoId));
       } catch (error) {
+        console.error("Errore eliminazione prodotto:", error);
         alert("Errore nell'eliminazione del prodotto");
       }
     }
@@ -1204,11 +1302,13 @@ const App = () => {
         await api.deleteArrivo(arrivoId);
         setArriviMerce(arriviMerce.filter((a) => a._id !== arrivoId));
       } catch (error) {
+        console.error("Errore eliminazione arrivo:", error);
         alert("Errore nell'eliminazione dell'arrivo");
       }
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1218,11 +1318,15 @@ const App = () => {
             style={{ width: "40px", height: "40px" }}
           ></div>
           <p className="text-gray-600">Caricamento dati...</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Connessione: {connectionStatus}
+          </p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1232,9 +1336,16 @@ const App = () => {
             Errore di Connessione
           </h2>
           <p className="text-gray-600 mb-4">{error}</p>
+          <div className="space-y-2 mb-4">
+            <p className="text-sm text-gray-500">
+              Stato connessione: {connectionStatus}
+            </p>
+            <p className="text-sm text-gray-500">API Base: {API_BASE}</p>
+          </div>
           <button
             onClick={loadData}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            type="button"
           >
             Riprova
           </button>
@@ -1247,12 +1358,42 @@ const App = () => {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Gestionale Azienda Agricola
-          </h1>
-          <p className="text-gray-600">
-            Sistema di gestione per arrivi merce, fornitori e magazzino
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Gestionale Azienda Agricola
+              </h1>
+              <p className="text-gray-600">
+                Sistema di gestione per arrivi merce, fornitori e magazzino
+              </p>
+            </div>
+            <div className="text-sm text-gray-500">
+              <div
+                className={`inline-flex items-center px-2 py-1 rounded ${
+                  connectionStatus === "connected"
+                    ? "bg-green-100 text-green-800"
+                    : connectionStatus === "failed"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full mr-2 ${
+                    connectionStatus === "connected"
+                      ? "bg-green-500"
+                      : connectionStatus === "failed"
+                      ? "bg-red-500"
+                      : "bg-yellow-500"
+                  }`}
+                ></span>
+                {connectionStatus === "connected"
+                  ? "Online"
+                  : connectionStatus === "failed"
+                  ? "Offline"
+                  : "Controllo..."}
+              </div>
+            </div>
+          </div>
         </header>
 
         {/* Dashboard Cards */}
@@ -1277,21 +1418,24 @@ const App = () => {
           <div className="flex flex-wrap gap-4">
             <button
               onClick={() => setShowFormMerce(true)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+              type="button"
             >
               <Plus className="mr-2 h-5 w-5" />
               Registra Arrivo Merce
             </button>
             <button
               onClick={() => setShowFormFornitore(true)}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center transition-colors"
+              type="button"
             >
               <Users className="mr-2 h-5 w-5" />
               Nuovo Fornitore
             </button>
             <button
               onClick={() => setShowFormProdotto(true)}
-              className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 flex items-center"
+              className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 flex items-center transition-colors"
+              type="button"
             >
               <Package className="mr-2 h-5 w-5" />
               Nuovo Prodotto
@@ -1322,7 +1466,10 @@ const App = () => {
                 </thead>
                 <tbody>
                   {arriviMerce.slice(0, 10).map((arrivo) => (
-                    <tr key={arrivo._id} className="border-b hover:bg-gray-50">
+                    <tr
+                      key={arrivo._id}
+                      className="border-b hover:bg-gray-50 transition-colors"
+                    >
                       <td className="p-2">
                         {new Date(arrivo.dataArrivo).toLocaleDateString(
                           "it-IT"
@@ -1357,13 +1504,15 @@ const App = () => {
                               setEditingArrivo(arrivo);
                               setShowFormMerce(true);
                             }}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            type="button"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteArrivo(arrivo._id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                            type="button"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1385,7 +1534,8 @@ const App = () => {
               <h2 className="text-xl font-bold">Fornitori</h2>
               <button
                 onClick={() => setShowFormFornitore(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center"
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center transition-colors"
+                type="button"
               >
                 <Plus className="mr-1 h-4 w-4" />
                 Aggiungi
@@ -1400,7 +1550,7 @@ const App = () => {
                 {fornitori.slice(0, 5).map((fornitore) => (
                   <div
                     key={fornitore._id}
-                    className="flex justify-between items-center p-3 border rounded hover:bg-gray-50"
+                    className="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors"
                   >
                     <div>
                       <div className="font-medium">
@@ -1408,6 +1558,11 @@ const App = () => {
                       </div>
                       <div className="text-sm text-gray-500">
                         {fornitore.partitaIva}
+                        {fornitore.biologico && (
+                          <span className="ml-2 bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                            BIO
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -1416,19 +1571,26 @@ const App = () => {
                           setEditingFornitore(fornitore);
                           setShowFormFornitore(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 transition-colors"
+                        type="button"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteFornitore(fornitore._id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                        type="button"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 ))}
+                {fornitori.length > 5 && (
+                  <div className="text-center text-sm text-gray-500 py-2">
+                    ... e altri {fornitori.length - 5} fornitori
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1439,7 +1601,8 @@ const App = () => {
               <h2 className="text-xl font-bold">Prodotti</h2>
               <button
                 onClick={() => setShowFormProdotto(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center transition-colors"
+                type="button"
               >
                 <Plus className="mr-1 h-4 w-4" />
                 Aggiungi
@@ -1454,7 +1617,7 @@ const App = () => {
                 {prodotti.slice(0, 5).map((prodotto) => (
                   <div
                     key={prodotto._id}
-                    className="flex justify-between items-center p-3 border rounded hover:bg-gray-50"
+                    className="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors"
                   >
                     <div>
                       <div className="font-medium">
@@ -1466,6 +1629,11 @@ const App = () => {
                             BIO
                           </span>
                         )}
+                        {prodotto.calibrabile && (
+                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-2">
+                            CALIBRABILE
+                          </span>
+                        )}
                         {prodotto.varieta && `Varietà: ${prodotto.varieta}`}
                       </div>
                     </div>
@@ -1475,23 +1643,63 @@ const App = () => {
                           setEditingProdotto(prodotto);
                           setShowFormProdotto(true);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 transition-colors"
+                        type="button"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteProdotto(prodotto._id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 transition-colors"
+                        type="button"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 ))}
+                {prodotti.length > 5 && (
+                  <div className="text-center text-sm text-gray-500 py-2">
+                    ... e altri {prodotti.length - 5} prodotti
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Footer con informazioni sistema */}
+        <footer className="mt-12 bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-600">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">Sistema</h3>
+              <p>Gestionale Agricolo v1.0</p>
+              <p>Ambiente: {process.env.NODE_ENV || "development"}</p>
+              <p>API: {API_BASE}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Stato Database
+              </h3>
+              <p>Fornitori: {fornitori.length}</p>
+              <p>Prodotti: {prodotti.length}</p>
+              <p>Arrivi Merce: {arriviMerce.length}</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-2">
+                Ultima Sincronizzazione
+              </h3>
+              <p>{new Date().toLocaleString("it-IT")}</p>
+              <button
+                onClick={loadData}
+                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                type="button"
+              >
+                Aggiorna Dati
+              </button>
+            </div>
+          </div>
+        </footer>
 
         {/* Modali */}
         {showFormFornitore && (
