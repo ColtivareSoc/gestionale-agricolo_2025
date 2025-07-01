@@ -1,8 +1,9 @@
-// server.js - Il cervello del nostro gestionale agricolo
+// index.js - Il cervello del nostro gestionale agricolo
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -11,12 +12,19 @@ const PORT = process.env.PORT || 5000;
 // Middleware (i "filtri" che processano le richieste)
 app.use(cors()); // Permette al frontend di comunicare con il backend
 app.use(express.json()); // Permette di leggere i dati JSON
-app.use(express.static(path.join(__dirname, "client/build"))); // Serve i file React
+
+// Solo in produzione, servi i file statici del React build
+if (process.env.NODE_ENV === "production") {
+  const buildPath = path.join(__dirname, "client/build");
+  if (fs.existsSync(buildPath)) {
+    app.use(express.static(buildPath));
+  }
+}
 
 // 🗄️ CONNESSIONE A MONGODB
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://username:password@cluster.mongodb.net/gestionale-agricolo?retryWrites=true&w=majority";
+  "mongodb+srv://coltivaresocagricola:4GtsVKfDO1NGpYn8@gestionale-agricolo.tucgzws.mongodb.net/?retryWrites=true&w=majority&appName=gestionale-agricolo";
 
 mongoose
   .connect(MONGODB_URI, {
@@ -139,11 +147,9 @@ app.post("/api/fornitori", async (req, res) => {
     res.status(201).json(fornitore);
   } catch (error) {
     console.error("Errore POST fornitore:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nella creazione del fornitore: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nella creazione del fornitore: " + error.message,
+    });
   }
 });
 
@@ -161,11 +167,9 @@ app.put("/api/fornitori/:id", async (req, res) => {
     res.json(fornitore);
   } catch (error) {
     console.error("Errore PUT fornitore:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'aggiornamento del fornitore: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'aggiornamento del fornitore: " + error.message,
+    });
   }
 });
 
@@ -179,11 +183,9 @@ app.delete("/api/fornitori/:id", async (req, res) => {
     res.json({ message: "Fornitore eliminato con successo" });
   } catch (error) {
     console.error("Errore DELETE fornitore:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'eliminazione del fornitore: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'eliminazione del fornitore: " + error.message,
+    });
   }
 });
 
@@ -226,11 +228,9 @@ app.put("/api/prodotti/:id", async (req, res) => {
     res.json(prodotto);
   } catch (error) {
     console.error("Errore PUT prodotto:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'aggiornamento del prodotto: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'aggiornamento del prodotto: " + error.message,
+    });
   }
 });
 
@@ -244,11 +244,9 @@ app.delete("/api/prodotti/:id", async (req, res) => {
     res.json({ message: "Prodotto eliminato con successo" });
   } catch (error) {
     console.error("Errore DELETE prodotto:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'eliminazione del prodotto: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'eliminazione del prodotto: " + error.message,
+    });
   }
 });
 
@@ -281,11 +279,9 @@ app.post("/api/arrivi", async (req, res) => {
     res.status(201).json(arrivo);
   } catch (error) {
     console.error("Errore POST arrivo:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nella registrazione dell'arrivo: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nella registrazione dell'arrivo: " + error.message,
+    });
   }
 });
 
@@ -307,11 +303,9 @@ app.put("/api/arrivi/:id", async (req, res) => {
     res.json(arrivo);
   } catch (error) {
     console.error("Errore PUT arrivo:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'aggiornamento dell'arrivo: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'aggiornamento dell'arrivo: " + error.message,
+    });
   }
 });
 
@@ -325,11 +319,9 @@ app.delete("/api/arrivi/:id", async (req, res) => {
     res.json({ message: "Arrivo eliminato con successo" });
   } catch (error) {
     console.error("Errore DELETE arrivo:", error);
-    res
-      .status(400)
-      .json({
-        error: "Errore nell'eliminazione dell'arrivo: " + error.message,
-      });
+    res.status(400).json({
+      error: "Errore nell'eliminazione dell'arrivo: " + error.message,
+    });
   }
 });
 
@@ -365,9 +357,63 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// Serve React app per tutte le altre route
+// Route di base per il development - mostra una pagina di informazioni
+app.get("/", (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    const buildPath = path.join(__dirname, "client/build", "index.html");
+    if (fs.existsSync(buildPath)) {
+      res.sendFile(buildPath);
+    } else {
+      res.status(503).json({
+        error: "Frontend non disponibile - build non trovato",
+      });
+    }
+  } else {
+    // In development, mostra informazioni sul server
+    res.json({
+      message: "🚀 Server Gestionale Agricolo attivo!",
+      mode: "Development",
+      apis: {
+        test: "/api/test",
+        fornitori: "/api/fornitori",
+        prodotti: "/api/prodotti",
+        arrivi: "/api/arrivi",
+        stats: "/api/stats",
+      },
+      frontend: {
+        note: "In development, avvia il client React separatamente con 'cd client && npm start'",
+        url: "http://localhost:3000",
+      },
+      database: "MongoDB Atlas",
+      timestamp: new Date(),
+    });
+  }
+});
+
+// Serve React app per tutte le altre route (solo in produzione)
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "client/build", "index.html"));
+  if (process.env.NODE_ENV === "production") {
+    const buildPath = path.join(__dirname, "client/build", "index.html");
+    if (fs.existsSync(buildPath)) {
+      res.sendFile(buildPath);
+    } else {
+      res.status(503).json({
+        error: "Frontend non disponibile - build non trovato",
+      });
+    }
+  } else {
+    res.status(404).json({
+      error: "Route non trovata",
+      availableRoutes: [
+        "/",
+        "/api/test",
+        "/api/fornitori",
+        "/api/prodotti",
+        "/api/arrivi",
+        "/api/stats",
+      ],
+    });
+  }
 });
 
 // Gestione errori globale
@@ -380,5 +426,10 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server Gestionale Agricolo attivo su porta ${PORT}`);
   console.log(`📋 API disponibili su http://localhost:${PORT}/api`);
-  console.log(`🌍 Frontend disponibile su http://localhost:${PORT}`);
+  if (process.env.NODE_ENV === "production") {
+    console.log(`🌍 Frontend disponibile su http://localhost:${PORT}`);
+  } else {
+    console.log(`⚡ Development Mode - Frontend su http://localhost:3000`);
+    console.log(`📍 Informazioni server: http://localhost:${PORT}`);
+  }
 });
