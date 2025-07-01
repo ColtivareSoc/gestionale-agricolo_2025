@@ -1,24 +1,28 @@
-// index.js - Il cervello del nostro gestionale agricolo
+// index.js - Gestionale Agricolo ottimizzato per Vercel
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
-const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Middleware (i "filtri" che processano le richieste)
-app.use(cors()); // Permette al frontend di comunicare con il backend
-app.use(express.json()); // Permette di leggere i dati JSON
+// Middleware
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === "production"
+        ? ["https://tuodominio.com", "https://gestionale-agricolo.vercel.app"]
+        : ["http://localhost:3000"],
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Solo in produzione, servi i file statici del React build
+// Serve static files in production
 if (process.env.NODE_ENV === "production") {
-  const buildPath = path.join(__dirname, "client/build");
-  if (fs.existsSync(buildPath)) {
-    app.use(express.static(buildPath));
-  }
+  app.use(express.static(path.join(__dirname, "client/build")));
 }
 
 // 🗄️ CONNESSIONE A MONGODB
@@ -26,20 +30,27 @@ const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb+srv://coltivaresocagricola:4GtsVKfDO1NGpYn8@gestionale-agricolo.tucgzws.mongodb.net/?retryWrites=true&w=majority&appName=gestionale-agricolo";
 
-mongoose
-  .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ Connesso a MongoDB Atlas!"))
-  .catch((err) => {
-    console.error("❌ Errore connessione MongoDB:", err);
-    console.log("🔧 Controlla la stringa di connessione MONGODB_URI");
-  });
+// Connessione MongoDB con retry logic
+const connectDB = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+    });
+    console.log("✅ Connesso a MongoDB Atlas!");
+  } catch (error) {
+    console.error("❌ Errore connessione MongoDB:", error);
+    // In produzione, non fermare il server per errori DB
+    if (process.env.NODE_ENV !== "production") {
+      process.exit(1);
+    }
+  }
+};
 
-// 📋 SCHEMI DATABASE (come sono fatti i nostri dati)
+connectDB();
 
-// Schema Fornitore
+// 📋 SCHEMI DATABASE
 const fornitoreSchema = new mongoose.Schema({
   ragioneSociale: { type: String, required: true },
   partitaIva: { type: String, required: true },
@@ -61,7 +72,6 @@ const fornitoreSchema = new mongoose.Schema({
   dataCreazione: { type: Date, default: Date.now },
 });
 
-// Schema Prodotto
 const prodottoSchema = new mongoose.Schema({
   categoria: { type: String, required: true },
   nome: { type: String, required: true },
@@ -73,7 +83,6 @@ const prodottoSchema = new mongoose.Schema({
   dataCreazione: { type: Date, default: Date.now },
 });
 
-// Schema Arrivo Merce
 const arrivoMerceSchema = new mongoose.Schema({
   dataArrivo: { type: Date, required: true },
   oraArrivo: String,
@@ -110,24 +119,34 @@ const arrivoMerceSchema = new mongoose.Schema({
   dataModifica: Date,
 });
 
-// Creazione modelli (le "tabelle" del database)
+// Modelli
 const Fornitore = mongoose.model("Fornitore", fornitoreSchema);
 const Prodotto = mongoose.model("Prodotto", prodottoSchema);
 const ArrivoMerce = mongoose.model("ArrivoMerce", arrivoMerceSchema);
 
-// 🚀 API ROUTES (gli "indirizzi" che il frontend può chiamare)
+// 🚀 API ROUTES
 
-// Route di test per verificare che il server funzioni
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "online",
+    timestamp: new Date(),
+    environment: process.env.NODE_ENV || "development",
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  });
+});
+
+// Test API
 app.get("/api/test", (req, res) => {
   res.json({
-    message: "🚀 Server Gestionale Agricolo funzionante!",
+    message: "🚀 API Gestionale Agricolo funzionante!",
     timestamp: new Date(),
     status: "online",
   });
 });
 
 // === FORNITORI ===
-// Ottenere tutti i fornitori
 app.get("/api/fornitori", async (req, res) => {
   try {
     const fornitori = await Fornitore.find().sort({ dataCreazione: -1 });
@@ -138,10 +157,8 @@ app.get("/api/fornitori", async (req, res) => {
   }
 });
 
-// Creare un nuovo fornitore
 app.post("/api/fornitori", async (req, res) => {
   try {
-    console.log("Creazione fornitore:", req.body);
     const nuovoFornitore = new Fornitore(req.body);
     const fornitore = await nuovoFornitore.save();
     res.status(201).json(fornitore);
@@ -153,7 +170,6 @@ app.post("/api/fornitori", async (req, res) => {
   }
 });
 
-// Aggiornare un fornitore
 app.put("/api/fornitori/:id", async (req, res) => {
   try {
     const fornitore = await Fornitore.findByIdAndUpdate(
@@ -173,7 +189,6 @@ app.put("/api/fornitori/:id", async (req, res) => {
   }
 });
 
-// Eliminare un fornitore
 app.delete("/api/fornitori/:id", async (req, res) => {
   try {
     const fornitore = await Fornitore.findByIdAndDelete(req.params.id);
@@ -190,7 +205,6 @@ app.delete("/api/fornitori/:id", async (req, res) => {
 });
 
 // === PRODOTTI ===
-// Ottenere tutti i prodotti
 app.get("/api/prodotti", async (req, res) => {
   try {
     const prodotti = await Prodotto.find().sort({ categoria: 1, nome: 1 });
@@ -201,22 +215,19 @@ app.get("/api/prodotti", async (req, res) => {
   }
 });
 
-// Creare un nuovo prodotto
 app.post("/api/prodotti", async (req, res) => {
   try {
-    console.log("Creazione prodotto:", req.body);
     const nuovoProdotto = new Prodotto(req.body);
     const prodotto = await nuovoProdotto.save();
     res.status(201).json(prodotto);
   } catch (error) {
     console.error("Errore POST prodotto:", error);
-    res
-      .status(400)
-      .json({ error: "Errore nella creazione del prodotto: " + error.message });
+    res.status(400).json({
+      error: "Errore nella creazione del prodotto: " + error.message,
+    });
   }
 });
 
-// Aggiornare un prodotto
 app.put("/api/prodotti/:id", async (req, res) => {
   try {
     const prodotto = await Prodotto.findByIdAndUpdate(req.params.id, req.body, {
@@ -234,7 +245,6 @@ app.put("/api/prodotti/:id", async (req, res) => {
   }
 });
 
-// Eliminare un prodotto
 app.delete("/api/prodotti/:id", async (req, res) => {
   try {
     const prodotto = await Prodotto.findByIdAndDelete(req.params.id);
@@ -251,7 +261,6 @@ app.delete("/api/prodotti/:id", async (req, res) => {
 });
 
 // === ARRIVI MERCE ===
-// Ottenere tutti gli arrivi
 app.get("/api/arrivi", async (req, res) => {
   try {
     const arrivi = await ArrivoMerce.find()
@@ -265,17 +274,12 @@ app.get("/api/arrivi", async (req, res) => {
   }
 });
 
-// Creare un nuovo arrivo
 app.post("/api/arrivi", async (req, res) => {
   try {
-    console.log("Creazione arrivo:", req.body);
     const nuovoArrivo = new ArrivoMerce(req.body);
     const arrivo = await nuovoArrivo.save();
-
-    // Popolare i dati del fornitore e prodotto per la risposta
     await arrivo.populate("fornitoreId", "ragioneSociale");
     await arrivo.populate("prodottoId", "categoria nome");
-
     res.status(201).json(arrivo);
   } catch (error) {
     console.error("Errore POST arrivo:", error);
@@ -285,7 +289,6 @@ app.post("/api/arrivi", async (req, res) => {
   }
 });
 
-// Aggiornare un arrivo
 app.put("/api/arrivi/:id", async (req, res) => {
   try {
     const arrivo = await ArrivoMerce.findByIdAndUpdate(
@@ -299,7 +302,6 @@ app.put("/api/arrivi/:id", async (req, res) => {
     if (!arrivo) {
       return res.status(404).json({ error: "Arrivo non trovato" });
     }
-
     res.json(arrivo);
   } catch (error) {
     console.error("Errore PUT arrivo:", error);
@@ -309,7 +311,6 @@ app.put("/api/arrivi/:id", async (req, res) => {
   }
 });
 
-// Eliminare un arrivo
 app.delete("/api/arrivi/:id", async (req, res) => {
   try {
     const arrivo = await ArrivoMerce.findByIdAndDelete(req.params.id);
@@ -325,7 +326,7 @@ app.delete("/api/arrivi/:id", async (req, res) => {
   }
 });
 
-// 📊 API STATISTICHE (bonus per il dashboard)
+// === STATISTICHE ===
 app.get("/api/stats", async (req, res) => {
   try {
     const oggi = new Date();
@@ -357,79 +358,40 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// Route di base per il development - mostra una pagina di informazioni
-app.get("/", (req, res) => {
+// Serve React app in production
+app.get("*", (req, res) => {
   if (process.env.NODE_ENV === "production") {
-    const buildPath = path.join(__dirname, "client/build", "index.html");
-    if (fs.existsSync(buildPath)) {
-      res.sendFile(buildPath);
-    } else {
-      res.status(503).json({
-        error: "Frontend non disponibile - build non trovato",
-      });
-    }
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
   } else {
-    // In development, mostra informazioni sul server
     res.json({
       message: "🚀 Server Gestionale Agricolo attivo!",
       mode: "Development",
       apis: {
+        health: "/api/health",
         test: "/api/test",
         fornitori: "/api/fornitori",
         prodotti: "/api/prodotti",
         arrivi: "/api/arrivi",
         stats: "/api/stats",
       },
-      frontend: {
-        note: "In development, avvia il client React separatamente con 'cd client && npm start'",
-        url: "http://localhost:3000",
-      },
-      database: "MongoDB Atlas",
       timestamp: new Date(),
     });
   }
 });
 
-// Serve React app per tutte le altre route (solo in produzione)
-app.get("*", (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    const buildPath = path.join(__dirname, "client/build", "index.html");
-    if (fs.existsSync(buildPath)) {
-      res.sendFile(buildPath);
-    } else {
-      res.status(503).json({
-        error: "Frontend non disponibile - build non trovato",
-      });
-    }
-  } else {
-    res.status(404).json({
-      error: "Route non trovata",
-      availableRoutes: [
-        "/",
-        "/api/test",
-        "/api/fornitori",
-        "/api/prodotti",
-        "/api/arrivi",
-        "/api/stats",
-      ],
-    });
-  }
-});
-
-// Gestione errori globale
+// Error handling
 app.use((err, req, res, next) => {
   console.error("Errore server:", err.stack);
   res.status(500).json({ error: "Errore interno del server" });
 });
 
-// Avvio del server
-app.listen(PORT, () => {
-  console.log(`🚀 Server Gestionale Agricolo attivo su porta ${PORT}`);
-  console.log(`📋 API disponibili su http://localhost:${PORT}/api`);
-  if (process.env.NODE_ENV === "production") {
-    console.log(`🌍 Frontend disponibile su http://localhost:${PORT}`);
-  } else {
-    console.log(`⚡ Development Mode - Frontend su http://localhost:3000`);
-    console.log(`📍 Informazioni server: http://localhost:${PORT}`);
-  }
-});
+// Export per Vercel
+module.exports = app;
+
+// Local server per development
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server Development attivo su porta ${PORT}`);
+  });
+}
