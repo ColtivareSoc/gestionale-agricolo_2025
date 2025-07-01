@@ -1,4 +1,4 @@
-// index.js - Gestionale Agricolo ottimizzato per Vercel
+// index.js - Gestionale Agricolo con Frontend integrato
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -8,47 +8,29 @@ require("dotenv").config();
 const app = express();
 
 // Middleware
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "production"
-        ? ["https://tuodominio.com", "https://gestionale-agricolo.vercel.app"]
-        : ["http://localhost:3000"],
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Serve static files in production
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "client/build")));
-}
+// Serve static files from React build
+const buildPath = path.join(__dirname, "client/build");
+app.use(express.static(buildPath));
 
 // 🗄️ CONNESSIONE A MONGODB
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb+srv://coltivaresocagricola:4GtsVKfDO1NGpYn8@gestionale-agricolo.tucgzws.mongodb.net/?retryWrites=true&w=majority&appName=gestionale-agricolo";
 
-// Connessione MongoDB con retry logic
-const connectDB = async () => {
-  try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
-    });
-    console.log("✅ Connesso a MongoDB Atlas!");
-  } catch (error) {
-    console.error("❌ Errore connessione MongoDB:", error);
-    // In produzione, non fermare il server per errori DB
-    if (process.env.NODE_ENV !== "production") {
-      process.exit(1);
-    }
-  }
-};
-
-connectDB();
+// Connessione MongoDB
+mongoose
+  .connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ Connesso a MongoDB Atlas!"))
+  .catch((err) => {
+    console.error("❌ Errore connessione MongoDB:", err);
+  });
 
 // 📋 SCHEMI DATABASE
 const fornitoreSchema = new mongoose.Schema({
@@ -358,25 +340,9 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// Serve React app in production
+// Serve React app for all other routes
 app.get("*", (req, res) => {
-  if (process.env.NODE_ENV === "production") {
-    res.sendFile(path.join(__dirname, "client/build", "index.html"));
-  } else {
-    res.json({
-      message: "🚀 Server Gestionale Agricolo attivo!",
-      mode: "Development",
-      apis: {
-        health: "/api/health",
-        test: "/api/test",
-        fornitori: "/api/fornitori",
-        prodotti: "/api/prodotti",
-        arrivi: "/api/arrivi",
-        stats: "/api/stats",
-      },
-      timestamp: new Date(),
-    });
-  }
+  res.sendFile(path.join(buildPath, "index.html"));
 });
 
 // Error handling
@@ -387,11 +353,3 @@ app.use((err, req, res, next) => {
 
 // Export per Vercel
 module.exports = app;
-
-// Local server per development
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server Development attivo su porta ${PORT}`);
-  });
-}
